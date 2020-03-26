@@ -27,37 +27,37 @@ def sanitize_filename(fname):
     return fname[:i]
 
 def main(infile):
-    f = open(infile)
+    f = open(infile, 'rb')
     t,_x,_y,blocks = struct.unpack("<IIII", f.read(16))
-    print "%d %d %d %d"%(t,_x,_y,blocks)
+    print(t,_x,_y,blocks)
     palette = []
     for i in range(256):
         r,g,b = struct.unpack("<BBB", f.read(3))
         palette.append((r,g,b))
-    print "palette: %s"%(' '.join(["#%02x%02x%02x"%(r,g,b) for r,g,b in palette]))
+    print("palette: %s"%(' '.join(["#%02x%02x%02x"%(r,g,b) for r,g,b in palette])))
     offsets = defaultdict(list)
     for i in range(blocks):
         bid,entries,x_,y_ = struct.unpack("<IIII", f.read(16))
-        print bid,entries,x_,y_
+        print(bid,entries,x_,y_)
         names=[]
         for j in range(entries):
             name, = struct.unpack("13s", f.read(13))
-            name = sanitize_filename(name)
-            print j, name
+            name = sanitize_filename(name.decode("latin-1"))
+            print(j, name)
             names.append(name)
         for n in names:
             offs, = struct.unpack("<I", f.read(4))
             offsets[bid].append((n,offs))
-    print "#\tnum\tsize\tformat\tfwidth\tfheight\twidth\theight\tlmargin\ttmargin"
+    print("#\tnum\tsize\tformat\tfwidth\tfheight\twidth\theight\tlmargin\ttmargin")
     for bid,l in offsets.items():
         for j,(n,offs) in enumerate(l):
             f.seek(offs)
             s,fmt,fw,fh,w,h,lm,tm = struct.unpack("<IIIIIIii", f.read(32))
-            print "frame:\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d"%(j,s,fmt,fw,fh,w,h,lm,tm)
+            print("frame:\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d"%(j,s,fmt,fw,fh,w,h,lm,tm))
 
 if __name__ == '__main__':
     import sys
     if len(sys.argv) != 2:
-        print "usage: %s input.def"%sys.argv[0]
+        print("usage: %s input.def"%sys.argv[0])
         exit(1)
     main(sys.argv[1])
