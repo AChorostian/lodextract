@@ -42,11 +42,11 @@ def read_pcx(data):
         return None
 
 def unpack_lod(infile,outdir):
-    f = open(infile)
+    f = open(infile, 'rb')
 
-    header = f.read(4)
+    header = f.read(4).decode("latin-1")
     if header != 'LOD\0':
-        print "not LOD file: %s"%header
+        print("not LOD file: ", header)
         return False
 
     f.seek(8)
@@ -56,13 +56,13 @@ def unpack_lod(infile,outdir):
     files=[]
     for i in range(total):
         filename, = struct.unpack("16s", f.read(16))
-        filename = filename[:filename.index('\0')].lower()
+        filename = filename[:filename.decode("latin-1").index('\0')].decode("latin-1").lower()
         offset,size,_,csize = struct.unpack("<IIII", f.read(16))
         files.append((filename,offset,size,csize))
 
     for filename,offset,size,csize in files:
         filename=os.path.join(outdir,filename)
-        print filename
+        print(filename)
         f.seek(offset)
         if csize != 0:
             data = zlib.decompress(f.read(csize))
@@ -76,7 +76,7 @@ def unpack_lod(infile,outdir):
             filename = filename+".png"
             im.save(filename)
         else:
-            with open(filename,"w+") as o:
+            with open(filename,"bw+") as o:
                 o.write(data)
 
     return True
@@ -84,13 +84,13 @@ def unpack_lod(infile,outdir):
 if __name__ == '__main__':
     import sys
     if len(sys.argv) != 3:
-        print "usage: %s infile.lod ./outdir"%sys.argv[0]
-        print ""
-        print "usually after installing the normal way:"
-        print "    %s .vcmi/Data/H3bitmap.lod .vcmi/Mods/vcmi/Data/"%sys.argv[0]
-        print "    rm .vcmi/Data/H3bitmap.lod"
-        print "    %s .vcmi/Data/H3sprite.lod .vcmi/Mods/vcmi/Data/"%sys.argv[0]
-        print "    rm .vcmi/Data/H3sprite.lod"
+        print("usage: ", sys.argv[0], " infile.lod ./outdir")
+        print("")
+        print("usually after installing the normal way:")
+        print("    ", sys.argv[0], " .vcmi/Data/H3bitmap.lod .vcmi/Mods/vcmi/Data/")
+        print("    rm .vcmi/Data/H3bitmap.lod")
+        print("    ", sys.argv[0], " .vcmi/Data/H3sprite.lod .vcmi/Mods/vcmi/Data/")
+        print("    rm .vcmi/Data/H3sprite.lod")
         exit(1)
     ret = unpack_lod(sys.argv[1], sys.argv[2])
     exit(0 if ret else 1)
