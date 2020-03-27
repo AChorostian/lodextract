@@ -28,7 +28,7 @@ import json
 import numpy as np
 
 def extract_def(infile,outdir):
-    f = open(infile)
+    f = open(infile, 'rb')
     bn = os.path.basename(infile)
     bn = os.path.splitext(bn)[0].lower()
 
@@ -52,6 +52,8 @@ def extract_def(infile,outdir):
         # a list of 13 character long filenames
         for j in range(entries):
             name, = struct.unpack("13s", f.read(13))
+            name = name.decode("latin-1")
+            names.append(name)
         # a list of offsets
         for j in range(entries):
             offs, = struct.unpack("<I", f.read(4))
@@ -60,7 +62,7 @@ def extract_def(infile,outdir):
     outpath = os.path.join(outdir,"%s.dir"%bn)
     if os.path.exists(outpath):
         if not os.path.isdir(outpath):
-            print "output path exists and is no directory"
+            print("output path exists and is no directory")
             return False
     else:
         os.mkdir(outpath)
@@ -72,7 +74,7 @@ def extract_def(infile,outdir):
         frames=[]
         for j,offs in enumerate(l):
             f.seek(offs)
-            pixeldata = ""
+            pixeldata = b""
             # first entry is the size which is unused
             # fmt - encoding format of image data
             # fw,fh - full width and height
@@ -80,13 +82,13 @@ def extract_def(infile,outdir):
             # lm,tm - left and top margin
             _,fmt,fw,fh,w,h,lm,tm = struct.unpack("<IIIIIIii", f.read(32))
             outname = os.path.join(outdir,"%s.dir"%bn,"%02d_%02d.png"%(bid,j))
-            print "writing to %s"%outname
+            print("writing to", outname)
 
             # SGTWMTA.def and SGTWMTB.def fail here
             # they have inconsistent left and top margins
             # they seem to be unused
             if lm > fw or tm > fh:
-                print "margins (%dx%d) are higher than dimensions (%dx%d)"%(lm,tm,fw,fh)
+                print("margins (", lm, "x", tm, ") are higher than dimensions (", fw, "x", fh, ")")
                 return False
 
             if firstfw==-1 and firstfh == -1:
@@ -94,22 +96,22 @@ def extract_def(infile,outdir):
                 firstfh = fh
             else:
                 if firstfw > fw:
-                    print "must enlarge width"
+                    print("must enlarge width")
                     fw = firstfw
                 if firstfw < fw:
-                    print "first with smaller than latter one"
+                    print("first with smaller than latter one")
                     return False
                 if firstfh > fh:
-                    print "must enlarge height"
+                    print("must enlarge height")
                     fh = firstfh
                 if firstfh < fh:
-                    print "first height smaller than latter one"
+                    print("first height smaller than latter one")
                     return False
 
             if out_json["format"] == -1:
                 out_json["format"] = fmt
             elif out_json["format"] != fmt:
-                print "format %d of this frame does not match of last frame %d"%(fmt,global_fmt)
+                print("format", fmt, "of this frame does not match of last frame", global_fmt)
                 return False
 
             frames.append(os.path.join("%s.dir"%bn,"%02d_%02d.png"%(bid,j)))
@@ -135,7 +137,7 @@ def extract_def(infile,outdir):
                     _,_ = struct.unpack("<BB", f.read(2)) # unknown
                     for lineoff in lineoffs:
                         if f.tell() != offs+32+lineoff:
-                            print "unexpected offset: %d, expected %d"%(f.tell(),offs+32+lineoff)
+                            print("unexpected offset:", str(f.tell()), ", expected", str(offs+32+lineoff))
                             f.seek(offs+32+lineoff)
                         totalrowlength=0
                         while totalrowlength<w:
@@ -150,12 +152,12 @@ def extract_def(infile,outdir):
                 elif fmt == 3:
                     # each row is split into 32 byte long blocks which are individually encoded
                     # two bytes store the offset for each block per line 
-                    lineoffs = [struct.unpack("<"+"H"*(w/32), f.read(w/16)) for i in range(h)]
+                    lineoffs = [struct.unpack("<"+"H"*int(w/32), f.read(int(w/16))) for i in range(h)]
 
                     for lineoff in lineoffs:
                         for i in lineoff:
                             if f.tell() != offs+32+i:
-                                print "unexpected offset: %d, expected %d"%(f.tell(),offs+32+i)
+                                print("unexpected offset:", str(f.tell()), ", expected", str(offs+32+i))
                                 f.seek(offs+32+i)
                             totalblocklength=0
                             while totalblocklength<32:
@@ -165,12 +167,12 @@ def extract_def(infile,outdir):
                                 if code == 7: # raw data
                                     pixeldata += f.read(length)
                                 else: # rle
-                                    pixeldata += length*chr(code)
+                                    pixeldata += (length*chr(code)).encode()
                                 totalblocklength+=length
                 else:
-                    print "unknown format: %d"%fmt
+                    print("unknown format:", fmt)
                     return False
-                imp = Image.fromstring('P', (w,h),pixeldata)
+                imp = Image.frombytes('P', (w,h), pixeldata)
                 imp.putpalette(palette)
                 # convert to RGBA
                 imrgb = imp.convert("RGBA")
@@ -205,9 +207,9 @@ def extract_def(infile,outdir):
 if __name__ == '__main__':
     import sys
     if len(sys.argv) != 3:
-        print "usage: %s input.def ./outdir"%sys.argv[0]
-        print "to process all files:"
-        print "    for f in *.def; do n=`basename $f .def`; mkdir -p defs/$n; %s defextract.py $f defs/$n; done"%sys.argv[0]
+        print("usage:", sys.argv[0], "input.def ./outdir")
+        print("to process all files:")
+        print("    for f in *.def; do n=`basename $f .def`; mkdir -p defs/$n;", sys.argv[0], "defextract.py $f defs/$n; done")
         exit(1)
     ret = extract_def(sys.argv[1], sys.argv[2])
     exit(0 if ret else 1)
